@@ -1,19 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
 import Texts from '../assets/texts';
-
-interface PerformanceEntry {
-  second: number;
-  chars: number;
-  errors: number;
-}
+import { useTyping, type PerformanceEntry } from '../context/TypingContext';
 
 export default function TypingContent() {
+  const { info, updateInfo } = useTyping();
+
   const [text, setText] = useState('');
-  const [charTyped, setCharTyped] = useState<PerformanceEntry[]>([]);
   const [actualLine, setActualLine] = useState(0);
-  const [totalTyped, setTotalTyped] = useState(0);
-  const [language, setLanguage] = useState<'pt-BR' | 'en-US'>('en-US');
-  const [difficulty, setDifficulty] = useState<'normal' | 'hard'>('normal');
+  const [charTyped, setCharTyped] = useState<PerformanceEntry[]>(info.data);
+  const [totalTyped, setTotalTyped] = useState(info.totalTyped);
+  const [language, setLanguage] = useState<'pt-BR' | 'en-US'>(info.language);
+  const [difficulty, setDifficulty] = useState<'normal' | 'hard'>(info.difficulty);
 
   const exampleText = useRef(
     Texts[language][Math.floor(Math.random() * Texts[language].length)],
@@ -68,11 +65,14 @@ export default function TypingContent() {
       const totalChars = prev.reduce((acc, entry) => acc + entry.chars, 0);
       const totalErrors = prev.reduce((acc, entry) => acc + entry.errors, 0);
 
-      const newState = [...prev, {
-        second: second.current,
-        chars: totalChars - totalTypedRef.current,
-        errors: currentErrors.current - totalErrors,
-      }];
+      const newState = [
+        ...prev,
+        {
+          second: second.current,
+          chars: totalChars - totalTypedRef.current,
+          errors: currentErrors.current - totalErrors,
+        },
+      ];
       console.log('Performance:', newState);
 
       return newState;
@@ -80,10 +80,10 @@ export default function TypingContent() {
   }
 
   function startTimer() {
+    updateInfo({ isRunning: true });
     second.current = 0;
     timerRef.current = setInterval(() => {
       if (second.current >= timeRef.current) {
-        console.log('time up', time, second.current >= time);
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
@@ -120,7 +120,7 @@ export default function TypingContent() {
     }
   }, [text, actualLine]);
 
- // Line completion and end handling
+  // Line completion and end handling
   useEffect(() => {
     if (exampleText.current.content[actualLine] === undefined) {
       if (timerRef.current) {
@@ -128,6 +128,7 @@ export default function TypingContent() {
       }
       second.current++;
       savePerformance();
+      updateInfo({ isRunning: false, data: charTyped, totalTyped, currentErrors: currentErrors.current });
     }
   }, [actualLine]);
 
@@ -232,7 +233,10 @@ export default function TypingContent() {
             setText(target.value);
           }}
           maxLength={exampleText.current.content[actualLine]?.length || 0}
-          disabled={second.current >= time || actualLine >= exampleText.current.content.length}
+          disabled={
+            second.current >= time ||
+            actualLine >= exampleText.current.content.length
+          }
         />
         <div>{exampleText.current.content[actualLine]}</div>
         <div>{text}</div>
