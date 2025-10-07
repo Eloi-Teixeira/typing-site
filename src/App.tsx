@@ -1,14 +1,15 @@
-import { useState } from 'react'
-import './App.css'
-import TypingContent from './components/TypingContent'
+import './App.css';
+import TypingContent from './components/TypingContent';
+import { TypingProvider } from './context/TypingContext';
 
 function App() {
-
   return (
     <>
-      <TypingContent />
+      <TypingProvider>
+        <TypingContent />
+      </TypingProvider>
     </>
-  )
+  );
 }
 
-export default App
+export default App;

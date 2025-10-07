@@ -1,28 +1,41 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import Texts from '../assets/texts';
 import { useTyping, type PerformanceEntry } from '../context/TypingContext';
+import PerformanceChart from './Graph';
 
 export default function TypingContent() {
   const { info, updateInfo } = useTyping();
 
   const [text, setText] = useState('');
+  const [isRunning, setIsRunning] = useState(info.isRunning);
   const [actualLine, setActualLine] = useState(0);
+  const [time, setTime] = useState(15);
   const [charTyped, setCharTyped] = useState<PerformanceEntry[]>(info.data);
   const [totalTyped, setTotalTyped] = useState(info.totalTyped);
   const [language, setLanguage] = useState<'pt-BR' | 'en-US'>(info.language);
-  const [difficulty, setDifficulty] = useState<'normal' | 'hard'>(info.difficulty);
+  const [difficulty, setDifficulty] = useState<'normal' | 'hard'>(
+    info.difficulty,
+  );
 
   const exampleText = useRef(
     Texts[language][Math.floor(Math.random() * Texts[language].length)],
   );
-  const [time, setTime] = useState<number>(15);
-
   const currentErrors = useRef(0);
   const totalTypedRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const timeRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const second = useRef(0);
+
+  const difficultyHtml: { label: string; value: 'normal' | 'hard' }[] = [
+    { label: 'Normal', value: 'normal' },
+    { label: 'Difícil', value: 'hard' },
+  ];
+  const timeHtml = [15, 30, 60, 120];
+  const languageHtml: { label: string; value: 'pt-BR' | 'en-US' }[] = [
+    { label: 'Português', value: 'pt-BR' },
+    { label: 'English', value: 'en-US' },
+  ];
 
   function checkChar(expected: string, actual: string) {
     return expected === actual;
@@ -33,6 +46,7 @@ export default function TypingContent() {
     setActualLine(0);
     setCharTyped([]);
     setTotalTyped(0);
+    setIsRunning(false);
     currentErrors.current = 0;
     totalTypedRef.current = 0;
     second.current = 0;
@@ -42,6 +56,7 @@ export default function TypingContent() {
     }
     exampleText.current =
       Texts[language][Math.floor(Math.random() * Texts[language].length)];
+    updateInfo({ isRunning: false, data: [], totalTyped: 0, currentErrors: 0 });
   }
 
   function handleInput(typedChar: string, idx: number, chars: string) {
@@ -69,7 +84,7 @@ export default function TypingContent() {
         ...prev,
         {
           second: second.current,
-          chars: totalChars - totalTypedRef.current,
+          chars: totalTypedRef.current - totalChars,
           errors: currentErrors.current - totalErrors,
         },
       ];
@@ -81,12 +96,27 @@ export default function TypingContent() {
 
   function startTimer() {
     updateInfo({ isRunning: true });
+    setIsRunning(true);
     second.current = 0;
     timerRef.current = setInterval(() => {
       if (second.current >= timeRef.current) {
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
+        timerRef.current = null;
+        setIsRunning(false);
+        setCharTyped((charTyped) => {
+          setTotalTyped((totalTyped) => {
+            updateInfo({
+              isRunning: false,
+              data: charTyped,
+              totalTyped,
+              currentErrors: currentErrors.current,
+            });
+            return totalTyped;
+          });
+          return charTyped;
+        });
         return;
       }
       second.current++;
@@ -118,23 +148,45 @@ export default function TypingContent() {
       setActualLine((prev) => prev + 1);
       setText('');
     }
-  }, [text, actualLine]);
 
-  // Line completion and end handling
-  useEffect(() => {
+    // Line completion and end handling
     if (exampleText.current.content[actualLine] === undefined) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
       second.current++;
       savePerformance();
-      updateInfo({ isRunning: false, data: charTyped, totalTyped, currentErrors: currentErrors.current });
+      setIsRunning(false);
+      updateInfo({
+        isRunning: false,
+        data: charTyped,
+        totalTyped,
+        currentErrors: currentErrors.current,
+      });
     }
-  }, [actualLine]);
+  }, [text, actualLine]);
+
+  // Performance update handling
+  useEffect(() => {
+    updateInfo({
+      isRunning,
+      data: charTyped,
+      totalTyped,
+      currentErrors: currentErrors.current,
+    });
+  }, [charTyped]);
 
   // Time change handling
   useEffect(() => {
     timeRef.current = time;
+    if (timeRef.current === second.current) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      timerRef.current = null;
+      updateInfo({ isRunning: false });
+      setIsRunning(false);
+    }
   }, [time]);
 
   // Start timer on first key press
@@ -159,37 +211,32 @@ export default function TypingContent() {
     };
   }, []);
 
+  // Language change handling
   useEffect(() => {
     reset();
   }, [language]);
 
   return (
-    <div className="typing-content">
+    <section className="typing-content">
       <span>Welcome to the Typing Content Component!</span>
       <div>
         <h2>Configurações</h2>
         <div className="language-select">
-          <label>
-            <input
-              type="radio"
-              checked={language === 'pt-BR'}
-              onChange={() => setLanguage('pt-BR')}
-              name="language"
-            />{' '}
-            Português
-          </label>
-          <label>
-            <input
-              type="radio"
-              checked={language === 'en-US'}
-              onChange={() => setLanguage('en-US')}
-              name="language"
-            />{' '}
-            English
-          </label>
+          {languageHtml.map((l) => (
+            <label key={l.value}>
+              <input
+                type="radio"
+                checked={language === l.value}
+                onChange={() => setLanguage(l.value)}
+                name="language"
+                disabled={isRunning}
+              />{' '}
+              {l.label}
+            </label>
+          ))}
         </div>
         <div className="timer-select">
-          {[15, 30, 60, 120].map((t) => (
+          {timeHtml.map((t) => (
             <span key={t}>
               <label>
                 <input
@@ -197,6 +244,7 @@ export default function TypingContent() {
                   checked={time === t}
                   onChange={() => setTime(t)}
                   name="time"
+                  disabled={isRunning}
                 />{' '}
                 {t} {language === 'pt-BR' ? 'segundos' : 'seconds'}
               </label>
@@ -204,24 +252,22 @@ export default function TypingContent() {
           ))}
         </div>
         <div className="difficulty-select">
-          <label>
-            <input
-              type="radio"
-              name="difficulty"
-              checked={difficulty === 'normal'}
-              onChange={() => setDifficulty('normal')}
-            />{' '}
-            Normal
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="difficulty"
-              checked={difficulty === 'hard'}
-              onChange={() => setDifficulty('hard')}
-            />{' '}
-            {language === 'pt-BR' ? 'Difícil' : 'Hard'}
-          </label>
+          {difficultyHtml.map((d) => (
+            <label key={d.value}>
+              <input
+                type="radio"
+                name="difficulty"
+                checked={difficulty === d.value}
+                onChange={() => setDifficulty(d.value)}
+                disabled={isRunning}
+              />{' '}
+              {d.label === 'Difícil'
+                ? language === 'pt-BR'
+                  ? 'Difícil'
+                  : 'Hard'
+                : d.label}
+            </label>
+          ))}
         </div>
       </div>
       <div className="text-display">
@@ -237,6 +283,12 @@ export default function TypingContent() {
             second.current >= time ||
             actualLine >= exampleText.current.content.length
           }
+          onKeyDown={(e) => {
+            if (e.key === 'Backspace' || e.key === 'Enter') {
+              e.preventDefault();
+            }
+          }}
+          placeholder={exampleText.current.content[actualLine] ? '' : 'Fim do teste'}
         />
         <div>{exampleText.current.content[actualLine]}</div>
         <div>{text}</div>
@@ -250,6 +302,15 @@ export default function TypingContent() {
         </div>
         <button onClick={() => reset()}>Resetar</button>
       </div>
-    </div>
+      {isRunning ? (
+        <div style={{ padding: 20, color: '#999' }}>
+          O teste está em andamento... Gráfico será atualizado ao final.
+        </div>
+      ) : (
+        <Suspense fallback={<div>Carregando gráfico...</div>}>
+          <PerformanceChart info={info} />
+        </Suspense>
+      )}
+    </section>
   );
 }

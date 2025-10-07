@@ -23,7 +23,7 @@ import { createContext, useContext, useState } from 'react';
 const TypingContext = createContext<TypingContextValue | null>(null);
 
 export function TypingProvider({ children }: { children: React.ReactNode }) {
-  const [info, setInfo] = useState<TypingContext>( {
+  const [info, setInfo] = useState<TypingContext>({
     difficulty: 'normal' as 'normal' | 'hard',
     time: 15,
     language: 'en-US' as 'pt-BR' | 'en-US',
@@ -37,7 +37,11 @@ export function TypingProvider({ children }: { children: React.ReactNode }) {
     setInfo((prev) => ({ ...prev, ...newInfo }));
   }
 
-  return <TypingContext.Provider value={{info, updateInfo}}>{children}</TypingContext.Provider>;
+  return (
+    <TypingContext.Provider value={{ info, updateInfo }}>
+      {children}
+    </TypingContext.Provider>
+  );
 }
 
 export function useTyping() {
