@@ -1,0 +1,148 @@
+.settings {
+  margin-bottom: 20px;
+  margin-inline: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--gray-800);
+  border-radius: 5px;
+  background-color: var(--gray-900);
+  display: flex;
+  align-items: center;
+  row-gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 700px;
+}
+
+.settings section {
+  display: flex;
+}
+
+.settings div {
+  padding-inline: 10px;
+  border-inline: 1px solid var(--gray-400);
+}
+
+.settings div:last-child,
+.settings div:first-child {
+  border-inline: none;
+}
+
+.settings div + div:nth-child(2) {
+  border-left: 1px solid var(--gray-400);
+}
+
+.settings label {
+  padding-inline: 0.5rem;
+  cursor: pointer;
+}
+
+.settings input[type='checkbox'],
+.settings input[type='radio'] {
+  display: none;
+}
+
+.settings input[type='checkbox'] + span,
+.settings input[type='radio'] + span {
+  padding: 5px 10px;
+  border-radius: 5px;
+  background-color: var(--gray-800);
+  transition: background-color 0.3s, color 0.3s;
+  user-select: none;
+}
+
+.settings input[type='checkbox']:checked + span,
+.settings input[type='radio']:checked + span {
+  background-color: var(--blue-500);
+  color: var(--white);
+}
+
+.settings input[type='checkbox']:disabled + span,
+.settings input[type='radio']:disabled + span {
+  background-color: var(--gray-700);
+  color: var(--gray-500);
+  cursor: not-allowed;
+}
+
+.text-display {
+  font-size: 1.5rem;
+  line-height: 1.6;
+  text-align: left;
+  max-width: 800px;
+  margin: 0 auto 2rem auto;
+  padding: 1.5rem;
+  border: 1px solid var(--gray-800);
+  border-radius: 5px;
+  background-color: var(--gray-900);
+  user-select: none;
+  min-height: 200px;
+}
+
+.text-display input {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.text-display label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  cursor: text;
+  outline: none;
+  color: var(--gray-500);
+  user-select: text;
+  position: relative;
+}
+
+.text-display .text-char {
+  white-space: pre;
+  transition: color 0.3s;
+  position: relative;
+}
+
+.text-display input:focus + label .text-char.current::before {
+  content: '';
+  position: absolute;
+  height: 80%;
+  width: 2px;
+  left: 0;
+  background-color: var(--gray-300);
+  animation: blink 1s step-start infinite;
+}
+
+.text-display .text-char.correct {
+  animation: correct 1s forwards;
+}
+
+.text-display .timeout .text-char.correct {
+  color: var(--gray-100);
+}
+
+.text-display .text-char.incorrect {
+  color: var(--red-500);
+  text-decoration: underline;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes correct {
+  0% {
+    color: var(--green-500);
+  }
+  100% {
+    color: var(--gray-100);
+  }
+}

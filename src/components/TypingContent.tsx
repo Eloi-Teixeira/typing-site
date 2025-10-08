@@ -10,22 +10,26 @@ export default function TypingContent() {
   const [isRunning, setIsRunning] = useState(info.isRunning);
   const [actualLine, setActualLine] = useState(0);
   const [time, setTime] = useState(15);
-  const [charTyped, setCharTyped] = useState<PerformanceEntry[]>(info.data);
-  const [totalTyped, setTotalTyped] = useState(info.totalTyped);
   const [language, setLanguage] = useState<'pt-BR' | 'en-US'>(info.language);
   const [difficulty, setDifficulty] = useState<'normal' | 'hard'>(
     info.difficulty,
   );
+  const [caseSensitive, setCaseSensitive] = useState(true);
+  const [allowError, setAllowError] = useState(true);
+  const [isLangOption, setIsLangOption] = useState(false);
+  const [isDiffOption, setIsDiffOption] = useState(false);
+  const [isTimeOption, setIsTimeOption] = useState(false);
 
   const exampleText = useRef(
     Texts[language][Math.floor(Math.random() * Texts[language].length)],
   );
   const currentErrors = useRef(0);
-  const totalTypedRef = useRef(0);
+  const totalTypedRef = useRef(info.totalTyped);
   const timerRef = useRef<number | null>(null);
   const timeRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const second = useRef(0);
+  const charTypedRef = useRef<PerformanceEntry[]>(info.data);
 
   const difficultyHtml: { label: string; value: 'normal' | 'hard' }[] = [
     { label: 'Normal', value: 'normal' },
@@ -38,17 +42,20 @@ export default function TypingContent() {
   ];
 
   function checkChar(expected: string, actual: string) {
+    if (!caseSensitive) {
+      expected = expected.toLowerCase();
+      actual = actual.toLowerCase();
+    }
     return expected === actual;
   }
 
   function reset() {
     setText('');
     setActualLine(0);
-    setCharTyped([]);
-    setTotalTyped(0);
     setIsRunning(false);
     currentErrors.current = 0;
     totalTypedRef.current = 0;
+    charTypedRef.current = [];
     second.current = 0;
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -62,12 +69,11 @@ export default function TypingContent() {
   function handleInput(typedChar: string, idx: number, chars: string) {
     const expected = chars[idx];
 
-    if (checkChar(expected, typedChar)) {
-      setTotalTyped((n) => {
-        const newTotal = n + 1;
-        totalTypedRef.current = newTotal;
-        return newTotal;
-      });
+    if (
+      checkChar(expected, typedChar) ||
+      (allowError && !checkChar(expected, typedChar))
+    ) {
+      totalTypedRef.current++;
       return true;
     } else {
       currentErrors.current++;
@@ -76,22 +82,27 @@ export default function TypingContent() {
   }
 
   function savePerformance() {
-    setCharTyped((prev) => {
-      const totalChars = prev.reduce((acc, entry) => acc + entry.chars, 0);
-      const totalErrors = prev.reduce((acc, entry) => acc + entry.errors, 0);
+    const totalChars = charTypedRef.current.reduce(
+      (acc, entry) => acc + entry.chars,
+      0,
+    );
+    const totalErrors = charTypedRef.current.reduce(
+      (acc, entry) => acc + entry.errors,
+      0,
+    );
 
-      const newState = [
-        ...prev,
-        {
-          second: second.current,
-          chars: totalTypedRef.current - totalChars,
-          errors: currentErrors.current - totalErrors,
-        },
-      ];
-      console.log('Performance:', newState);
+    const newState = [
+      ...charTypedRef.current,
+      {
+        second: second.current,
+        chars: totalTypedRef.current - totalChars,
+        errors: currentErrors.current - totalErrors,
+      },
+    ];
+    charTypedRef.current = newState;
+    console.log('Performance:', newState);
 
-      return newState;
-    });
+    return newState;
   }
 
   function startTimer() {
@@ -105,17 +116,11 @@ export default function TypingContent() {
         }
         timerRef.current = null;
         setIsRunning(false);
-        setCharTyped((charTyped) => {
-          setTotalTyped((totalTyped) => {
-            updateInfo({
-              isRunning: false,
-              data: charTyped,
-              totalTyped,
-              currentErrors: currentErrors.current,
-            });
-            return totalTyped;
-          });
-          return charTyped;
+        updateInfo({
+          isRunning: false,
+          data: charTypedRef.current,
+          totalTyped: totalTypedRef.current,
+          currentErrors: currentErrors.current,
         });
         return;
       }
@@ -159,22 +164,33 @@ export default function TypingContent() {
       setIsRunning(false);
       updateInfo({
         isRunning: false,
-        data: charTyped,
-        totalTyped,
+        data: charTypedRef.current,
+        totalTyped: totalTypedRef.current,
         currentErrors: currentErrors.current,
       });
     }
-  }, [text, actualLine]);
+  }, [text]);
 
-  // Performance update handling
   useEffect(() => {
-    updateInfo({
-      isRunning,
-      data: charTyped,
-      totalTyped,
-      currentErrors: currentErrors.current,
-    });
-  }, [charTyped]);
+    if (
+      exampleText.current.content[actualLine] === undefined &&
+      actualLine > 0
+    ) {
+      // Acabou as linhas!
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      second.current++;
+      savePerformance();
+      setIsRunning(false);
+      updateInfo({
+        isRunning: false,
+        data: charTypedRef.current,
+        totalTyped: totalTypedRef.current,
+        currentErrors: currentErrors.current,
+      });
+    }
+  }, [actualLine]);
 
   // Time change handling
   useEffect(() => {
@@ -204,7 +220,8 @@ export default function TypingContent() {
     setTime(exampleText.current.default_time);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      if (inputRef.current)
+        inputRef.current.removeEventListener('keydown', handleKeyDown);
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -218,57 +235,125 @@ export default function TypingContent() {
 
   return (
     <section className="typing-content">
-      <span>Welcome to the Typing Content Component!</span>
-      <div>
-        <h2>Configurações</h2>
-        <div className="language-select">
-          {languageHtml.map((l) => (
-            <label key={l.value}>
+      <div className="settings">
+        <section>
+          <div>
+            <label>
               <input
-                type="radio"
-                checked={language === l.value}
-                onChange={() => setLanguage(l.value)}
-                name="language"
-                disabled={isRunning}
-              />{' '}
-              {l.label}
-            </label>
-          ))}
-        </div>
-        <div className="timer-select">
-          {timeHtml.map((t) => (
-            <span key={t}>
-              <label>
-                <input
-                  type="radio"
-                  checked={time === t}
-                  onChange={() => setTime(t)}
-                  name="time"
-                  disabled={isRunning}
-                />{' '}
-                {t} {language === 'pt-BR' ? 'segundos' : 'seconds'}
-              </label>
-            </span>
-          ))}
-        </div>
-        <div className="difficulty-select">
-          {difficultyHtml.map((d) => (
-            <label key={d.value}>
-              <input
-                type="radio"
+                type="checkbox"
                 name="difficulty"
-                checked={difficulty === d.value}
-                onChange={() => setDifficulty(d.value)}
+                checked={isLangOption}
+                onChange={() => setIsLangOption(!isLangOption)}
                 disabled={isRunning}
-              />{' '}
-              {d.label === 'Difícil'
-                ? language === 'pt-BR'
-                  ? 'Difícil'
-                  : 'Hard'
-                : d.label}
+              />
+              <span>{language === 'pt-BR' ? 'Línguagem' : 'Language'}</span>
             </label>
-          ))}
-        </div>
+            <label>
+              <input
+                type="checkbox"
+                name="allowError"
+                disabled={isRunning}
+                checked={isDiffOption}
+                onChange={() => setIsDiffOption(!isDiffOption)}
+              />
+              <span>{language === 'pt-BR' ? 'Dificuldade' : 'Difficulty'}</span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name="allowError"
+                disabled={isRunning}
+                checked={isTimeOption}
+                onChange={() => setIsTimeOption(!isTimeOption)}
+              />
+              <span>Time</span>
+            </label>
+          </div>
+          <div className="case-sensitive-select">
+            <label>
+              <input
+                type="checkbox"
+                name="caseSensitive"
+                disabled={isRunning}
+                checked={caseSensitive}
+                onChange={() => setCaseSensitive(!caseSensitive)}
+              />
+              <span>Case Sensitive</span>
+            </label>
+          </div>
+          <div className="allow-error-select">
+            <label>
+              <input
+                type="checkbox"
+                name="allowError"
+                disabled={isRunning || difficulty === 'hard'}
+                checked={allowError}
+                onChange={() =>
+                  setAllowError(difficulty === 'hard' ? false : !allowError)
+                }
+              />
+              <span>Permitir erros</span>
+            </label>
+          </div>
+        </section>
+        <section>
+          {isLangOption && (
+            <div className="language-select">
+              {languageHtml.map((l) => (
+                <label key={l.value}>
+                  <input
+                    type="radio"
+                    checked={language === l.value}
+                    onChange={() => setLanguage(l.value)}
+                    name="language"
+                    disabled={isRunning}
+                  />
+                  <span>{l.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {isDiffOption && (
+            <div className="difficulty-select">
+              {difficultyHtml.map((d) => (
+                <label key={d.value}>
+                  <input
+                    type="radio"
+                    name="difficulty"
+                    checked={difficulty === d.value}
+                    onChange={() => setDifficulty(d.value)}
+                    disabled={isRunning}
+                  />
+                  <span>
+                    {d.label === 'Difícil'
+                      ? language === 'pt-BR'
+                        ? 'Difícil'
+                        : 'Hard'
+                      : d.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          {isTimeOption && (
+            <div className="timer-select">
+              {timeHtml.map((t) => (
+                <span key={t}>
+                  <label>
+                    <input
+                      type="radio"
+                      checked={time === t}
+                      onChange={() => setTime(t)}
+                      name="time"
+                      disabled={isRunning}
+                    />
+                    <span>{t}</span>
+                  </label>
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
       <div className="text-display">
         <input
@@ -284,25 +369,53 @@ export default function TypingContent() {
             actualLine >= exampleText.current.content.length
           }
           onKeyDown={(e) => {
-            if (e.key === 'Backspace' || e.key === 'Enter') {
+            if (!allowError && (e.key === 'Backspace' || e.key === 'Enter')) {
               e.preventDefault();
             }
           }}
-          placeholder={exampleText.current.content[actualLine] ? '' : 'Fim do teste'}
+          id="typing-input"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
         />
-        <div>{exampleText.current.content[actualLine]}</div>
-        <div>{text}</div>
+        <label
+          htmlFor="typing-input"
+          className={`${!isRunning ? 'timeout' : ''}`}
+        >
+          {exampleText.current.content[actualLine] &&
+            exampleText.current.content[actualLine].split('').map((l, i) => {
+              return (
+                <span
+                  key={Math.random().toString(36).substring(2, 9)}
+                  className={`text-char ${
+                    i < text.length
+                      ? checkChar(l, text[i])
+                        ? 'correct'
+                        : 'incorrect'
+                      : ''
+                  } 
+                  ${i === text.length ? 'current' : ''}
+                  `}
+                >
+                  {l}
+                </span>
+              );
+            })}
+        </label>
       </div>
       <div>
         <h2>Estatísticas</h2>
         <div>
-          <div>Total digitado: {totalTyped} caracteres</div>
+          <div>Total digitado: {totalTypedRef.current} caracteres</div>
           <div>Erros: {currentErrors.current}</div>
           <div>Tempo: {second.current} segundos</div>
         </div>
+        <button onClick={() => reset()}>Parar</button>
         <button onClick={() => reset()}>Resetar</button>
       </div>
-      {isRunning ? (
+
+      {/* {isRunning ? (
         <div style={{ padding: 20, color: '#999' }}>
           O teste está em andamento... Gráfico será atualizado ao final.
         </div>
@@ -310,7 +423,7 @@ export default function TypingContent() {
         <Suspense fallback={<div>Carregando gráfico...</div>}>
           <PerformanceChart info={info} />
         </Suspense>
-      )}
+      )} */}
     </section>
   );
 }

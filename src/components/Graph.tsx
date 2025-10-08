@@ -1,4 +1,4 @@
-import React, { use, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   VictoryChart,
   VictoryLine,
