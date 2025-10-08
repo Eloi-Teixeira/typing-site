@@ -12,6 +12,7 @@ export interface TypingContext {
   totalTyped: number;
   currentErrors: number;
   isRunning: boolean;
+  textLength: number
 }
 
 interface TypingContextValue {
@@ -31,6 +32,7 @@ export function TypingProvider({ children }: { children: React.ReactNode }) {
     totalTyped: 0,
     currentErrors: 0,
     isRunning: false,
+    textLength: 0
   });
 
   function updateInfo(newInfo: Partial<TypingContext>) {

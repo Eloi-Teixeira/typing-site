@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import Texts from '../assets/texts';
 import { useTyping, type PerformanceEntry } from '../context/TypingContext';
 import PerformanceChart from './Graph';
@@ -9,7 +9,6 @@ export default function TypingContent() {
   const [text, setText] = useState('');
   const [isRunning, setIsRunning] = useState(info.isRunning);
   const [actualLine, setActualLine] = useState(0);
-  const [time, setTime] = useState(15);
   const [language, setLanguage] = useState<'pt-BR' | 'en-US'>(info.language);
   const [difficulty, setDifficulty] = useState<'normal' | 'hard'>(
     info.difficulty,
@@ -23,14 +22,39 @@ export default function TypingContent() {
   const exampleText = useRef(
     Texts[language][Math.floor(Math.random() * Texts[language].length)],
   );
-  const currentErrors = useRef(0);
-  const totalTypedRef = useRef(info.totalTyped);
-  const timerRef = useRef<number | null>(null);
-  const timeRef = useRef<number>(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const second = useRef(0);
-  const charTypedRef = useRef<PerformanceEntry[]>(info.data);
 
+  const [time, setTime] = useState(exampleText.current.default_time);
+
+  const charTypedRef = useRef<PerformanceEntry[]>(info.data);
+  const totalTypedRef = useRef(info.totalTyped);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<number | null>(null);
+  const currentErrors = useRef(0);
+  const timeRef = useRef<number>(0);
+  const second = useRef(0);
+  const consecutiveErrors = useRef(0);
+
+  const renderedText = useMemo(() => {
+    const line = exampleText.current.content[actualLine];
+    if (!line) return null;
+
+    return line.split('').map((l, i) => (
+      <span
+        key={`${actualLine}-${i}`}
+        className={`text-char ${
+          i < text.length
+            ? checkChar(l, text[i])
+              ? 'correct'
+              : 'incorrect'
+            : ''
+        } ${i === text.length ? 'current' : ''}`}
+      >
+        {l}
+      </span>
+    ));
+  }, [actualLine, text]);
+
+  const MAX_CONSECUTIVE_ERRORS = 3;
   const difficultyHtml: { label: string; value: 'normal' | 'hard' }[] = [
     { label: 'Normal', value: 'normal' },
     { label: 'Difícil', value: 'hard' },
@@ -69,14 +93,18 @@ export default function TypingContent() {
   function handleInput(typedChar: string, idx: number, chars: string) {
     const expected = chars[idx];
 
-    if (
-      checkChar(expected, typedChar) ||
-      (allowError && !checkChar(expected, typedChar))
-    ) {
+    if (checkChar(expected, typedChar)) {
+      consecutiveErrors.current = 0;
       totalTypedRef.current++;
       return true;
     } else {
       currentErrors.current++;
+      totalTypedRef.current++;
+
+      if (allowError && consecutiveErrors.current <= MAX_CONSECUTIVE_ERRORS) {
+        consecutiveErrors.current++;
+        return true;
+      }
       return false;
     }
   }
@@ -106,7 +134,13 @@ export default function TypingContent() {
   }
 
   function startTimer() {
-    updateInfo({ isRunning: true });
+    updateInfo({
+      isRunning: true,
+      textLength: exampleText.current.content.reduce(
+        (acc, t) => t.length + acc,
+        0,
+      ),
+    });
     setIsRunning(true);
     second.current = 0;
     timerRef.current = setInterval(() => {
@@ -131,8 +165,7 @@ export default function TypingContent() {
 
   // Difficulty and input handling
   useEffect(() => {
-    if (text.length === 0) return;
-
+    if (!exampleText.current.content[actualLine]) return;
     const correct = handleInput(
       text[text.length - 1],
       text.length - 1,
@@ -149,28 +182,17 @@ export default function TypingContent() {
       }
     }
 
-    if (text === exampleText.current.content[actualLine]) {
+    if (
+      text === exampleText.current.content[actualLine] ||
+      (allowError &&
+        text.length === exampleText.current.content[actualLine].length)
+    ) {
       setActualLine((prev) => prev + 1);
       setText('');
     }
-
-    // Line completion and end handling
-    if (exampleText.current.content[actualLine] === undefined) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      second.current++;
-      savePerformance();
-      setIsRunning(false);
-      updateInfo({
-        isRunning: false,
-        data: charTypedRef.current,
-        totalTyped: totalTypedRef.current,
-        currentErrors: currentErrors.current,
-      });
-    }
   }, [text]);
 
+  // Line change handling
   useEffect(() => {
     if (
       exampleText.current.content[actualLine] === undefined &&
@@ -204,29 +226,6 @@ export default function TypingContent() {
       setIsRunning(false);
     }
   }, [time]);
-
-  // Start timer on first key press
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.length === 1 && !timerRef.current) {
-        startTimer();
-      }
-    };
-
-    if (inputRef.current) {
-      inputRef.current.addEventListener('keydown', handleKeyDown);
-    }
-
-    setTime(exampleText.current.default_time);
-
-    return () => {
-      if (inputRef.current)
-        inputRef.current.removeEventListener('keydown', handleKeyDown);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
 
   // Language change handling
   useEffect(() => {
@@ -355,7 +354,20 @@ export default function TypingContent() {
           )}
         </section>
       </div>
-      <div className="text-display">
+      <div
+        className="text-display"
+        onClick={() => {
+          if (!isRunning && text.length >= 1) {
+            const confirmStart = window.confirm(
+              language === 'pt-BR' ? 'Reiniciar o teste?' : 'Restart the test?',
+            );
+            if (confirmStart) {
+              reset();
+            }
+          }
+          inputRef.current?.focus();
+        }}
+      >
         <input
           type="text"
           ref={inputRef}
@@ -368,9 +380,18 @@ export default function TypingContent() {
             second.current >= time ||
             actualLine >= exampleText.current.content.length
           }
+          onCopy={(e) => {
+            e.preventDefault();
+          }}
+          onPaste={(e) => {
+            e.preventDefault();
+          }}
           onKeyDown={(e) => {
             if (!allowError && (e.key === 'Backspace' || e.key === 'Enter')) {
               e.preventDefault();
+            }
+            if (e.key.length === 1 && !timerRef.current) {
+              startTimer();
             }
           }}
           id="typing-input"
@@ -383,33 +404,21 @@ export default function TypingContent() {
           htmlFor="typing-input"
           className={`${!isRunning ? 'timeout' : ''}`}
         >
-          {exampleText.current.content[actualLine] &&
-            exampleText.current.content[actualLine].split('').map((l, i) => {
-              return (
-                <span
-                  key={Math.random().toString(36).substring(2, 9)}
-                  className={`text-char ${
-                    i < text.length
-                      ? checkChar(l, text[i])
-                        ? 'correct'
-                        : 'incorrect'
-                      : ''
-                  } 
-                  ${i === text.length ? 'current' : ''}
-                  `}
-                >
-                  {l}
-                </span>
-              );
-            })}
+          {renderedText || (
+            <span style={{ color: 'var(--green-500)' }}>Fim do texto!</span>
+          )}
         </label>
+        <span className="lines">
+          {actualLine}/{exampleText.current.content.length}
+        </span>
       </div>
       <div>
         <h2>Estatísticas</h2>
         <div>
           <div>Total digitado: {totalTypedRef.current} caracteres</div>
+          <div>Tamanho: {info.textLength}</div>
           <div>Erros: {currentErrors.current}</div>
-          <div>Tempo: {second.current} segundos</div>
+          <div>Tempo: {time} segundos</div>
         </div>
         <button onClick={() => reset()}>Parar</button>
         <button onClick={() => reset()}>Resetar</button>
@@ -420,9 +429,7 @@ export default function TypingContent() {
           O teste está em andamento... Gráfico será atualizado ao final.
         </div>
       ) : (
-        <Suspense fallback={<div>Carregando gráfico...</div>}>
           <PerformanceChart info={info} />
-        </Suspense>
       )} */}
     </section>
   );

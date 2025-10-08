@@ -10,7 +10,7 @@
   row-gap: 2rem;
   flex-wrap: wrap;
   justify-content: center;
-  max-width: 700px;
+  max-width: 650px;
 }
 
 .settings section {
@@ -67,7 +67,6 @@
   font-size: 1.5rem;
   line-height: 1.6;
   text-align: left;
-  max-width: 800px;
   margin: 0 auto 2rem auto;
   padding: 1.5rem;
   border: 1px solid var(--gray-800);
@@ -75,6 +74,10 @@
   background-color: var(--gray-900);
   user-select: none;
   min-height: 200px;
+  max-width: 650px;
+  display: flex;
+  justify-content: center;
+  position: relative;
 }
 
 .text-display input {
@@ -89,6 +92,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
   cursor: text;
@@ -127,6 +131,19 @@
   text-decoration: underline;
 }
 
+.text-display .lines {
+  position: absolute;
+  bottom: .5rem;
+  right: .5rem;
+  font-size: .8rem;
+  color: var(--gray-500);
+  user-select: none;
+  font-weight: bold;
+  background-color: var(--black);
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+ 
 @keyframes blink {
   0%,
   50% {
