@@ -87,7 +87,12 @@ export default function TypingContent() {
     }
     exampleText.current =
       Texts[language][Math.floor(Math.random() * Texts[language].length)];
-    updateInfo({ isRunning: false, data: [], totalTyped: 0, currentErrors: 0 });
+    updateInfo({
+      isRunning: false,
+      data: [],
+      totalTyped: 0,
+      errors: 0,
+    });
   }
 
   function handleInput(typedChar: string, idx: number, chars: string) {
@@ -154,7 +159,8 @@ export default function TypingContent() {
           isRunning: false,
           data: charTypedRef.current,
           totalTyped: totalTypedRef.current,
-          currentErrors: currentErrors.current,
+          errors: currentErrors.current,
+        
         });
         return;
       }
@@ -209,7 +215,8 @@ export default function TypingContent() {
         isRunning: false,
         data: charTypedRef.current,
         totalTyped: totalTypedRef.current,
-        currentErrors: currentErrors.current,
+        errors: currentErrors.current,
+        
       });
     }
   }, [actualLine]);
@@ -229,7 +236,7 @@ export default function TypingContent() {
 
   // Language change handling
   useEffect(() => {
-    updateInfo({language})
+    updateInfo({ language });
     reset();
   }, [language]);
 
@@ -409,7 +416,12 @@ export default function TypingContent() {
             <span style={{ color: 'var(--green-500)' }}>Fim do texto!</span>
           )}
         </label>
-        <span className="lines" title={language === 'pt-BR' ? 'Linhas completadas' : 'Completed lines'}>
+        <span
+          className="lines"
+          title={
+            language === 'pt-BR' ? 'Linhas completadas' : 'Completed lines'
+          }
+        >
           {actualLine}/{exampleText.current.content.length}
         </span>
       </div>

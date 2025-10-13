@@ -10,9 +10,9 @@ export interface TypingContext {
   language: 'pt-BR' | 'en-US';
   data: PerformanceEntry[];
   totalTyped: number;
-  currentErrors: number;
+  errors: number;
   isRunning: boolean;
-  textLength: number
+  textLength: number;
 }
 
 interface TypingContextValue {
@@ -30,9 +30,9 @@ export function TypingProvider({ children }: { children: React.ReactNode }) {
     language: 'en-US' as 'pt-BR' | 'en-US',
     data: [] as PerformanceEntry[],
     totalTyped: 0,
-    currentErrors: 0,
+    errors: 0,
     isRunning: false,
-    textLength: 0
+    textLength: 0,
   });
 
   function updateInfo(newInfo: Partial<TypingContext>) {

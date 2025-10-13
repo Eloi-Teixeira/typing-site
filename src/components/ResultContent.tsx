@@ -16,7 +16,9 @@ export default function ResultsContent() {
       <h1>Resultados</h1>
       <div>
         <span>Digitação media {typingAverage.toFixed(2)}</span>
-        <span>Erros: {info.currentErrors}</span>
+        <span>Erros: {info.errors}</span>
+        <br />
+        <span>{info.totalTyped - info.errors} / {info.totalTyped} / {info.textLength} </span>
       </div>
 
       <PerformanceChart />
