@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 import {
   VictoryChart,
   VictoryLine,
@@ -6,7 +6,8 @@ import {
   VictoryAxis,
   VictoryTheme,
   VictoryTooltip,
-} from "victory";
+} from 'victory';
+import { useTyping } from '../context/TypingContext';
 
 export interface PerformanceEntry {
   second: number;
@@ -14,32 +15,10 @@ export interface PerformanceEntry {
   errors: number;
 }
 
-export interface TypingContext {
-  difficulty: "normal" | "hard";
-  time: number;
-  language: "pt-BR" | "en-US";
-  data: PerformanceEntry[];
-  totalTyped: number;
-  currentErrors: number;
-  isRunning: boolean;
-}
-
-interface Props {
-  info: TypingContext;
-}
-
-/**
- * PerformanceChart
- * - recebe info.data: PerformanceEntry[]
- * - converte para formato que Victory entende (x, y)
- * - ordena por x
- * - garante que x,y sejam numbers
- * - calcula domain para não "apagar" pontos
- */
-const PerformanceChart = ({info} : Props) => {
+const PerformanceChart = () => {
+  const { info } = useTyping();
   const { data } = info;
 
-  // transforma e sanitiza dados para Victory
   const { chartData, errorPoints, xDomain, yDomain } = useMemo(() => {
     if (!data || data.length === 0) {
       return {
@@ -54,7 +33,7 @@ const PerformanceChart = ({info} : Props) => {
     const mapped = data
       .map((d) => ({
         x: Number(d.second), // x = segundos
-        y: Number(d.chars),  // y = chars por segundo
+        y: Number(d.chars), // y = chars por segundo
         errors: Number(d.errors || 0),
       }))
       .sort((a, b) => a.x - b.x);
@@ -84,16 +63,17 @@ const PerformanceChart = ({info} : Props) => {
 
   if (!chartData || chartData.length === 0) {
     return (
-      <div style={{ padding: 20, color: "#999" }}>
-        Sem dados para mostrar — comece um teste para coletar `PerformanceEntry[]`.
+      <div style={{ padding: 20, color: '#999' }}>
+        Sem dados para mostrar — comece um teste para coletar
+        `PerformanceEntry[]`.
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1060 }}>
+    <div style={{ maxWidth: 1060, background: 'white' }}>
       <VictoryChart
-        theme={VictoryTheme.material}
+        theme={VictoryTheme.clean}
         domain={{ x: xDomain, y: yDomain }}
         padding={{ top: 20, bottom: 50, left: 60, right: 30 }}
         animate={{ duration: 300 }}
@@ -103,16 +83,16 @@ const PerformanceChart = ({info} : Props) => {
           tickFormat={(t) => `${t}s`}
           style={{
             axisLabel: { padding: 30 },
-            tickLabels: { fontSize: 10 },
+            tickLabels: { fontSize: 12 },
           }}
         />
 
         <VictoryAxis
           dependentAxis
-          label="Caracteres / s"
+          label="Caracteres"
           style={{
             axisLabel: { padding: 40 },
-            tickLabels: { fontSize: 10 },
+            tickLabels: { fontSize: 12 },
           }}
         />
 
@@ -122,30 +102,31 @@ const PerformanceChart = ({info} : Props) => {
           x="x"
           y="y"
           style={{
-            data: { stroke: "#1976d2", strokeWidth: 2 },
+            data: { stroke: '#1976d2', strokeWidth: 2 },
           }}
         />
 
         {/* pontos normais */}
         <VictoryScatter
-          data={chartData.filter((d) => !(d as any).errors || (d as any).errors === 0)}
+          data={chartData.filter(
+            (d) => !(d as any).errors || (d as any).errors === 0,
+          )}
           x="x"
           y="y"
           size={3}
           labels={({ datum }) => `${datum.y} Caracteres`}
           labelComponent={<VictoryTooltip />}
-          style={{ data: { fill: "#1976d2" } }}
+          style={{ data: { fill: '#1976d2' } }}
         />
 
-        {/* pontos com erros em vermelho (maiores) */}
         <VictoryScatter
           data={errorPoints}
           x="x"
           y="y"
           size={5}
-          labels={({ datum }) => `Erros: ${datum.errors}\n${datum.y} chars`}
+          labels={({ datum }) => `Erros: ${datum.errors}\n${info.language === 'pt-BR' ? 'Caracteres':"Char"}: ${datum.y}`}
           labelComponent={<VictoryTooltip />}
-          style={{ data: { fill: "red" } }}
+          style={{ data: { fill: 'red' } }}
         />
       </VictoryChart>
     </div>

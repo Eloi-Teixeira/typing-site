@@ -52,7 +52,7 @@ export default function TypingContent() {
         {l}
       </span>
     ));
-  }, [actualLine, text]);
+  }, [actualLine, text, language]);
 
   const MAX_CONSECUTIVE_ERRORS = 3;
   const difficultyHtml: { label: string; value: 'normal' | 'hard' }[] = [
@@ -229,6 +229,7 @@ export default function TypingContent() {
 
   // Language change handling
   useEffect(() => {
+    updateInfo({language})
     reset();
   }, [language]);
 
@@ -408,29 +409,10 @@ export default function TypingContent() {
             <span style={{ color: 'var(--green-500)' }}>Fim do texto!</span>
           )}
         </label>
-        <span className="lines">
+        <span className="lines" title={language === 'pt-BR' ? 'Linhas completadas' : 'Completed lines'}>
           {actualLine}/{exampleText.current.content.length}
         </span>
       </div>
-      <div>
-        <h2>Estatísticas</h2>
-        <div>
-          <div>Total digitado: {totalTypedRef.current} caracteres</div>
-          <div>Tamanho: {info.textLength}</div>
-          <div>Erros: {currentErrors.current}</div>
-          <div>Tempo: {time} segundos</div>
-        </div>
-        <button onClick={() => reset()}>Parar</button>
-        <button onClick={() => reset()}>Resetar</button>
-      </div>
-
-      {/* {isRunning ? (
-        <div style={{ padding: 20, color: '#999' }}>
-          O teste está em andamento... Gráfico será atualizado ao final.
-        </div>
-      ) : (
-          <PerformanceChart info={info} />
-      )} */}
     </section>
   );
 }
